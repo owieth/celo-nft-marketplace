@@ -7,7 +7,6 @@ import {
 import "@rainbow-me/rainbowkit/styles.css";
 import type { AppProps } from 'next/app';
 import { configureChains, createClient, WagmiConfig } from "wagmi";
-import { alchemyProvider } from 'wagmi/providers/alchemy';
 import { publicProvider } from 'wagmi/providers/public';
 import "../styles/globals.css";
 
@@ -35,7 +34,6 @@ const { chains, provider } = configureChains(
     }
   ],
   [
-    alchemyProvider({ alchemyId: process.env.ALCHEMY_ID }),
     publicProvider()
   ]
 );
