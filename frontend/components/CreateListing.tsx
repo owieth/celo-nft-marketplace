@@ -1,87 +1,88 @@
 import { Button, Input, Loading, Modal, Text } from "@nextui-org/react";
-import { Contract, ethers } from "ethers";
+import { ethers } from "ethers";
 import { parseEther } from "ethers/lib/utils";
 import { useEffect, useState } from "react";
-import { useSigner } from "wagmi";
+import { useContractWrite, useSigner, useWaitForTransaction } from "wagmi";
 import ERC721ABI from "../artifacts/@openzeppelin/contracts/token/ERC721/ERC721.sol/ERC721.json";
-import MarketplaceABI from "../artifacts/contracts/NFTMarketplace.sol/NFTMarketplace.json";
-import { MARKETPLACE_ADDRESS } from "../constants";
+import MARKETPLACEABI from "../artifacts/contracts/NFTMarketplace.sol/NFTMarketplace.json";
+import { MARKETPLACE_ADDRESS, NFT_ADDRESS } from "../constants";
 
 export const CreateListing = () => {
   const [visible, setVisible] = useState(false);
-  const [tokenId, setTokenId] = useState("");
-  const [price, setPrice] = useState("");
+  const [tokenId, setTokenId] = useState("0");
+  const [price, setPrice] = useState('0.1');
   const [nftAddress, setNftAddress] = useState("")
   const [loading, setLoading] = useState(false);
 
   const { data: signer } = useSigner();
 
+  const contractConfigMarketplace = {
+    addressOrName: MARKETPLACE_ADDRESS,
+    contractInterface: MARKETPLACEABI.abi,
+  };
+
+  const contractConfigNFT = {
+    addressOrName: NFT_ADDRESS,
+    contractInterface: ERC721ABI.abi,
+  };
+
+  const {
+    writeAsync: approval
+  } = useContractWrite({
+    ...contractConfigNFT, functionName: 'approve',
+    overrides: { gasLimit: 1e7 },
+    args: [signer?.getAddress(), 0]
+  });
+
+  const {
+    data: mintData,
+    isLoading: isMintLoading,
+    isSuccess: isMintStarted,
+    writeAsync: mint
+  } = useContractWrite({
+    ...contractConfigMarketplace, functionName: 'createListing',
+    overrides: { gasLimit: 1e7 },
+    args: [nftAddress, tokenId, parseEther(price)]
+  });
+
+  const { isSuccess: txSuccess, error: txError } = useWaitForTransaction({
+    hash: mintData?.hash,
+  });
+
   async function handleCreateListing() {
     setLoading(true);
 
-    try {
-      await requestApproval();
-      await createListing();
-    } catch (error) {
-      console.error(error);
-    }
+    //await approval();
+
+    await approval();
+
+    // try {
+    //   // Initialize an instance of the marketplace contract
+    //   const MarketplaceContract = new Contract(
+    //     MARKETPLACE_ADDRESS,
+    //     MarketplaceABI.abi,
+    //     signer!
+    //   );
+
+    //   // Send the create listing transaction
+    //   const createListingTxn = await MarketplaceContract.createListing(
+    //     nftAddress,
+    //     tokenId,
+    //     parseEther(price)
+    //   );
+    //   await createListingTxn.wait();
+    // } catch (error) {
+    //   console.error(error);
+    // }
 
     setLoading(false);
-  }
-
-  async function requestApproval() {
-    // Get signer's address
-    const address = await signer?.getAddress();
-
-    // Initialize a contract instance for the NFT contract
-    const ERC721Contract = new Contract(nftAddress, ERC721ABI.abi, signer!);
-
-    // Make sure user is owner of the NFT in question
-    const tokenOwner = await ERC721Contract.ownerOf(tokenId);
-    if (tokenOwner.toLowerCase() !== address!.toLowerCase()) {
-      throw new Error(`You do not own this NFT`);
-    }
-
-    // Check if user already gave approval to the marketplace
-    const isApproved = await ERC721Contract.isApprovedForAll(
-      address,
-      MARKETPLACE_ADDRESS
-    );
-
-    // If not approved
-    if (!isApproved) {
-      console.log("Requesting approval over NFTs...");
-
-      // Send approval transaction to NFT contract
-      const approvalTxn = await ERC721Contract.setApprovalForAll(
-        MARKETPLACE_ADDRESS,
-        true
-      );
-      await approvalTxn.wait();
-    }
-  }
-
-  async function createListing() {
-    // Initialize an instance of the marketplace contract
-    const MarketplaceContract = new Contract(
-      MARKETPLACE_ADDRESS,
-      MarketplaceABI.abi,
-      signer!
-    );
-
-    // Send the create listing transaction
-    const createListingTxn = await MarketplaceContract.createListing(
-      nftAddress,
-      tokenId,
-      parseEther(price)
-    );
-    await createListingTxn.wait();
+    setVisible(false);
   }
 
   useEffect(() => {
-    setNftAddress(ethers.Wallet.createRandom().address)
+    //setNftAddress(ethers.Wallet.createRandom().address)
+    setNftAddress("0x7D134b07e10584e13A467d2F8E97169C614d88C4")
   }, [])
-
 
   return (
     <>
@@ -109,9 +110,9 @@ export const CreateListing = () => {
           />
           <Input
             bordered
-            type='number'
+            //type='number'
             label="NFT Token ID"
-            onChange={(e) => setTokenId(e.target.value)}
+            initialValue={tokenId}
           />
           <Input
             bordered
