@@ -12,6 +12,9 @@ const config: HardhatUserConfig = {
       accounts: [process.env.PRIVATE_KEY!],
     },
   },
+  paths: {
+    artifacts: "./frontend/artifacts"
+  }
 };
 
 export default config;
